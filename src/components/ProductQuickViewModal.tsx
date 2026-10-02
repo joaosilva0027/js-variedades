@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { Product } from '../types';
 import { Logo } from './Logo';
+import { getProductUrl } from '../utils/productRoutes';
+import { navigateTo } from '../utils/navigation';
 
 interface ProductQuickViewModalProps {
   product: Product | null;
@@ -274,6 +276,16 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                   <span>Adicionar ao Carrinho</span>
                 </>
               )}
+            </button>
+            <button
+              onClick={() => {
+                onClose();
+                navigateTo(getProductUrl(product));
+              }}
+              className="w-full py-2.5 px-4 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50/70 rounded-xl transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span>Ver Página Completa e Detalhes</span>
+              <ExternalLink className="w-3.5 h-3.5" />
             </button>
           </div>
 

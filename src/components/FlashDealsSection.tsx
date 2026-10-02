@@ -11,6 +11,8 @@ import {
   Percent
 } from 'lucide-react';
 import { Product } from '../types';
+import { getProductUrl } from '../utils/productRoutes';
+import { navigateTo } from '../utils/navigation';
 
 interface FlashDealsSectionProps {
   products: Product[];
@@ -166,17 +168,22 @@ export const FlashDealsSection: React.FC<FlashDealsSectionProps> = ({
 
                 {/* Quick view button overlay */}
                 <button
-                  onClick={() => onSelectProduct(product)}
+                  onClick={() => onSelectProduct ? onSelectProduct(product) : navigateTo(getProductUrl(product))}
                   className="absolute top-2.5 right-2.5 z-10 p-2 rounded-full bg-white/90 text-slate-700 hover:text-blue-600 hover:bg-white shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200"
-                  title="Espiar produto"
+                  title="Ver detalhes do produto"
                 >
                   <Eye className="w-4 h-4" />
                 </button>
 
                 {/* Product Image */}
-                <div 
-                  className="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer"
-                  onClick={() => onSelectProduct(product)}
+                <a 
+                  href={getProductUrl(product)}
+                  className="relative aspect-square overflow-hidden bg-slate-100 cursor-pointer block"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (onSelectProduct) onSelectProduct(product);
+                    else navigateTo(getProductUrl(product));
+                  }}
                 >
                   <img
                     src={pImg}
@@ -184,7 +191,7 @@ export const FlashDealsSection: React.FC<FlashDealsSectionProps> = ({
                     className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
-                </div>
+                </a>
 
                 {/* Content */}
                 <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between">
@@ -196,11 +203,17 @@ export const FlashDealsSection: React.FC<FlashDealsSectionProps> = ({
                     </span>
 
                     {/* Title */}
-                    <h3 
-                      onClick={() => onSelectProduct(product)}
-                      className="font-bold text-slate-800 text-xs sm:text-sm line-clamp-2 hover:text-blue-600 transition-colors cursor-pointer leading-snug"
-                    >
-                      {product.title}
+                    <h3 className="font-bold text-slate-800 text-xs sm:text-sm line-clamp-2 hover:text-blue-600 transition-colors leading-snug">
+                      <a 
+                        href={getProductUrl(product)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (onSelectProduct) onSelectProduct(product);
+                          else navigateTo(getProductUrl(product));
+                        }}
+                      >
+                        {product.title}
+                      </a>
                     </h3>
 
                     {/* Rating */}

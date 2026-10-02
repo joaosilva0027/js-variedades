@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { CartItem } from '../types';
 import { Logo } from './Logo';
+import { navigateTo } from '../utils/navigation';
 
 interface HeaderProps {
   cartItems: CartItem[];
@@ -58,7 +59,15 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between gap-3 sm:gap-6">
           
           {/* Brand Logo */}
-          <a href="#" className="flex items-center group flex-shrink-0" title="JS Variedades - Início">
+          <a 
+            href="/" 
+            onClick={(e) => {
+              e.preventDefault();
+              navigateTo('/');
+            }}
+            className="flex items-center group flex-shrink-0 cursor-pointer" 
+            title="JS Variedades - Início"
+          >
             <Logo size="md" variant="dark" showText={true} showTagline={true} />
           </a>
 
