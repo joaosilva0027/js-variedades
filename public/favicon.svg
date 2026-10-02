@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1050" fill="none">
+  <defs>
+    <linearGradient id="favRoyalBlue" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#0056eb" />
+      <stop offset="50%" stop-color="#0041c4" />
+      <stop offset="100%" stop-color="#002f9c" />
+    </linearGradient>
+    <linearGradient id="favTurquoise" x1="10%" y1="10%" x2="90%" y2="90%">
+      <stop offset="0%" stop-color="#00d5fb" />
+      <stop offset="50%" stop-color="#00b4d8" />
+      <stop offset="100%" stop-color="#009bbd" />
+    </linearGradient>
+    <linearGradient id="favTailAccent" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0066ff" />
+      <stop offset="100%" stop-color="#003db5" />
+    </linearGradient>
+  </defs>
+
+  <!-- Handle Left -->
+  <path d="M 494 245 C 494 125, 558 48, 680 48 L 708 48 L 640 142 C 592 152, 568 188, 564 245 Z" fill="url(#favRoyalBlue)" />
+  <!-- Handle Right -->
+  <path d="M 708 48 C 765 48, 856 108, 856 245 L 784 245 C 784 178, 748 142, 640 142 L 708 48 Z" fill="url(#favTurquoise)" />
+  <!-- Letter J Top Arm -->
+  <path d="M 340 245 L 582 245 L 556 352 L 340 352 Z" fill="url(#favRoyalBlue)" />
+  <!-- Letter J Stem and Hook -->
+  <path d="M 582 245 L 624 245 L 446 828 C 418 918, 334 956, 240 946 C 165 938, 98 878, 108 775 L 184 712 C 162 798, 208 860, 278 868 C 342 875, 376 832, 396 768 L 556 245 Z" fill="url(#favRoyalBlue)" />
+  <!-- Letter J Tail Accent -->
+  <path d="M 108 775 C 92 848, 134 918, 218 948 C 142 922, 114 852, 134 766 Z" fill="url(#favTailAccent)" />
+  <!-- Letter S Upper Shoulder -->
+  <path d="M 640 245 L 972 245 L 972 482 L 808 482 L 808 352 L 640 352 Z" fill="url(#favTurquoise)" />
+  <!-- Letter S Diagonal -->
+  <path d="M 448 468 L 626 250 L 692 316 L 538 522 L 808 662 L 746 752 L 448 586 Z" fill="url(#favTurquoise)" />
+  <!-- Letter S Lower Loop & Base -->
+  <path d="M 808 662 L 940 635 L 940 848 C 940 918, 888 946, 808 946 L 365 946 L 365 842 L 790 842 C 824 842, 842 826, 842 796 L 842 748 L 746 752 L 808 662 Z" fill="url(#favTurquoise)" />
+</svg>

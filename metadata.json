@@ -1,0 +1,6 @@
+{
+  "name": "JS Variedades - Loja Online Oficial",
+  "description": "Loja online moderna de alta conversão da JS Variedades com ofertas relâmpago, produtos virais, frete grátis e checkout rápido.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
