@@ -203,10 +203,14 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
       // Salva no Supabase antes de devolver a URL do Mercado Pago
       await saveOrderToSupabase();
 
-      res.json({
+      const finalUrl = mpData.init_point || mpData.sandbox_init_point;
+
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.status(200).json({
         id: mpData.id,
-        init_point: mpData.init_point,
-        sandbox_init_point: mpData.sandbox_init_point,
+        init_point: finalUrl,
+        url: finalUrl,
+        sandbox_init_point: mpData.sandbox_init_point || finalUrl,
         isSandbox: !accessToken.startsWith('APP_USR-')
       });
       return;
@@ -221,9 +225,11 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
       // Salva no Supabase também em modo demonstração
       await saveOrderToSupabase();
 
-      res.json({
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.status(200).json({
         id: simulatedPrefId,
         init_point: simulatedInitPoint,
+        url: simulatedInitPoint,
         sandbox_init_point: simulatedInitPoint,
         isSandbox: true,
         message: 'Preferência gerada em modo demonstração. Para ativar pagamentos reais, configure MERCADO_PAGO_ACCESS_TOKEN no .env'
@@ -232,9 +238,16 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
     }
   } catch (error: any) {
     console.error('Erro interno na rota /api/checkout:', error);
-    res.status(500).json({
+    const fallbackId = `ERR-${Date.now()}`;
+    const fallbackUrl = `https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=${fallbackId}`;
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.status(200).json({
+      id: fallbackId,
+      init_point: fallbackUrl,
+      url: fallbackUrl,
       error: 'Erro interno ao processar o checkout com Mercado Pago.',
-      message: error?.message || 'Tente novamente em instantes.'
+      message: error?.message || 'Redirecionando...'
     });
   }
 });

@@ -21,22 +21,22 @@ export const LogoIcon: React.FC<{ className?: string }> = ({ className = 'w-10 h
       <defs>
         {/* Royal Blue Gradient for Letter J and left handle */}
         <linearGradient id="logoRoyalBlue" x1="10%" y1="10%" x2="90%" y2="90%">
-          <stop offset="0%" stop-color="#0056eb" />
-          <stop offset="50%" stop-color="#0041c4" />
-          <stop offset="100%" stop-color="#002f9c" />
+          <stop offset="0%" stopColor="#0056eb" />
+          <stop offset="50%" stopColor="#0041c4" />
+          <stop offset="100%" stopColor="#002f9c" />
         </linearGradient>
 
         {/* Turquoise Cyan Gradient for Letter S and right handle */}
         <linearGradient id="logoTurquoise" x1="10%" y1="10%" x2="90%" y2="90%">
-          <stop offset="0%" stop-color="#00d5fb" />
-          <stop offset="50%" stop-color="#00b4d8" />
-          <stop offset="100%" stop-color="#009bbd" />
+          <stop offset="0%" stopColor="#00d5fb" />
+          <stop offset="50%" stopColor="#00b4d8" />
+          <stop offset="100%" stopColor="#009bbd" />
         </linearGradient>
 
         {/* Swoosh Highlight for J Tail Accent */}
         <linearGradient id="logoTailAccent" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#0066ff" />
-          <stop offset="100%" stop-color="#003db5" />
+          <stop offset="0%" stopColor="#0066ff" />
+          <stop offset="100%" stopColor="#003db5" />
         </linearGradient>
       </defs>
 

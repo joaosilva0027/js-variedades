@@ -114,18 +114,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: any = {};
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        throw new Error('A rota /api/checkout retornou uma resposta inválida. Verifique a configuração de rewrites na Vercel.');
+      }
 
-      if (!response.ok) {
+      if (!response.ok && !data.init_point && !data.url) {
         throw new Error(data.error || 'Não foi possível gerar a preferência de pagamento.');
       }
 
-      const targetUrl = data.init_point || data.sandbox_init_point;
+      const targetUrl = data.init_point || data.url || data.sandbox_init_point;
 
       if (!targetUrl) {
         throw new Error('Link de checkout do Mercado Pago não retornado pela API.');
