@@ -125,11 +125,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       try {
         data = JSON.parse(responseText);
       } catch {
-        throw new Error('A rota /api/checkout retornou uma resposta inválida. Verifique a configuração de rewrites na Vercel.');
+        throw new Error('A rota /api/checkout retornou uma resposta inválida. Verifique sua conexão e tente novamente.');
       }
 
       if (!response.ok && !data.init_point && !data.url) {
-        throw new Error(data.error || 'Não foi possível gerar a preferência de pagamento.');
+        const rawErr = data.error || data.message || 'Não foi possível gerar a preferência de pagamento.';
+        const readableErr = typeof rawErr === 'object' 
+          ? (rawErr.message || JSON.stringify(rawErr)) 
+          : String(rawErr);
+        throw new Error(readableErr);
       }
 
       const targetUrl = data.init_point || data.url || data.sandbox_init_point;
@@ -156,7 +160,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     } catch (err: any) {
       console.error('Checkout error:', err);
-      setErrorMessage(err.message || 'Erro ao conectar ao Mercado Pago. Verifique sua conexão e tente novamente.');
+      let readableMsg: string;
+
+      if (typeof err === 'object' && err !== null) {
+        if (typeof err.message === 'string' && err.message.trim() !== '') {
+          readableMsg = err.message;
+        } else {
+          try {
+            readableMsg = JSON.stringify(err);
+          } catch {
+            readableMsg = String(err);
+          }
+        }
+      } else {
+        readableMsg = String(err);
+      }
+
+      if (!readableMsg || readableMsg === '[object Object]' || readableMsg === '{}') {
+        readableMsg = 'Erro ao processar o pagamento com Mercado Pago. Por favor, tente novamente.';
+      }
+
+      setErrorMessage(readableMsg);
       setLoading(false);
     }
   };

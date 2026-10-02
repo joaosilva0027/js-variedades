@@ -33,35 +33,50 @@ app.get('/api/health', (req: Request, res: Response) => {
  */
 app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { items, payer, discountPercent = 0 } = req.body;
+    const { items, payer, discountPercent = 0 } = req.body || {};
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      res.status(400).json({ error: 'Nenhum item informado para o checkout.' });
-      return;
+    // Requirement 3: Safe fallback if items is empty or invalid
+    let rawItems = Array.isArray(items) && items.length > 0 ? items : [];
+    if (rawItems.length === 0) {
+      rawItems = [{
+        id: 'prod-geral-js',
+        title: 'Produto JS Variedades Oficial',
+        description: 'Compra segura na loja JS Variedades Oficial',
+        price: 49.90,
+        unit_price: 49.90,
+        quantity: 1,
+        category: 'others'
+      }];
     }
 
-    if (!payer || !payer.name || !payer.email) {
-      res.status(400).json({ error: 'Dados do cliente incompletos (Nome e E-mail são obrigatórios).' });
-      return;
-    }
+    // Safe fallback if payer or fields are incomplete
+    const safePayer = payer && typeof payer === 'object' ? payer : {};
+    const rawName = (safePayer.name || '').trim() || 'Cliente JS Variedades';
+    const rawEmail = (safePayer.email || '').trim() || 'cliente@jsvariedades.com.br';
+    const rawPhone = (safePayer.phone || '').trim();
+    const rawAddress = (safePayer.address || '').trim() || 'Endereço informado no checkout';
 
     // Split name into first and last name for Mercado Pago payer schema
-    const nameParts = (payer.name || '').trim().split(' ');
+    const nameParts = rawName.split(' ');
     const firstName = nameParts[0] || 'Cliente';
     const lastName = nameParts.slice(1).join(' ') || 'JS Variedades';
 
-    // Format phone
-    const cleanPhone = (payer.phone || '').replace(/\D/g, '');
+    // Format phone with safe fallbacks
+    const cleanPhone = rawPhone.replace(/\D/g, '');
     const areaCode = cleanPhone.length >= 10 ? cleanPhone.slice(0, 2) : '11';
-    const phoneNumber = cleanPhone.length >= 10 ? cleanPhone.slice(2) : cleanPhone || '999999999';
+    const phoneNumber = cleanPhone.length >= 10 ? cleanPhone.slice(2) : (cleanPhone.length >= 8 ? cleanPhone : '999999999');
 
     // Calculate discounted unit price if coupon was applied
     const discountMultiplier = discountPercent > 0 ? (100 - discountPercent) / 100 : 1;
 
-    // Prepare Mercado Pago items array
-    const mpItems = items.map((item: any, index: number) => {
+    // Prepare Mercado Pago items array with safe fallback for unit_price and quantity
+    const mpItems = rawItems.map((item: any, index: number) => {
       const rawPrice = Number(item.price ?? item.unit_price ?? 0);
-      const discountedPrice = Math.max(1, Number((rawPrice * discountMultiplier).toFixed(2)));
+      const validPrice = !isNaN(rawPrice) && rawPrice > 0 ? rawPrice : 29.90;
+      const discountedPrice = Math.max(1, Number((validPrice * discountMultiplier).toFixed(2)));
+
+      const rawQty = Math.floor(Number(item.quantity));
+      const validQty = !isNaN(rawQty) && rawQty >= 1 ? rawQty : 1;
 
       return {
         id: String(item.id || `item-${index + 1}`),
@@ -69,7 +84,7 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
         description: String(item.description || item.title || 'Compra na JS Variedades Oficial').slice(0, 250),
         picture_url: item.image || item.imageUrl || item.picture_url || 'https://jsvariedades.com.br/logo.svg',
         category_id: String(item.category || 'others').slice(0, 60),
-        quantity: Math.max(1, Number(item.quantity) || 1),
+        quantity: validQty,
         currency_id: 'BRL',
         unit_price: discountedPrice
       };
@@ -83,14 +98,14 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
       payer: {
         name: firstName,
         surname: lastName,
-        email: payer.email.trim(),
+        email: rawEmail,
         phone: {
           area_code: areaCode,
           number: phoneNumber
         },
         address: {
-          street_name: (payer.address || 'Endereço informado no checkout').slice(0, 120),
-          zip_code: (payer.zipCode || '01001-000').replace(/\D/g, '')
+          street_name: rawAddress.slice(0, 120),
+          zip_code: (safePayer.zipCode || safePayer.cep || '01001-000').replace(/\D/g, '') || '01001000'
         }
       },
       back_urls: {
@@ -106,70 +121,67 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
         default_installments: 1
       },
       metadata: {
-        customer_name: payer.name,
-        customer_phone: payer.phone,
-        customer_address: payer.address,
+        customer_name: rawName,
+        customer_phone: rawPhone,
+        customer_address: rawAddress,
         source: 'js_variedades_checkout_pro'
       }
     };
 
     // Extract and compute required order fields for Supabase table 'pedidos'
     const cepRegex = /\b\d{5}-?\d{3}\b/;
-    const matchedCep = (payer.address || '').match(cepRegex)?.[0] || '';
-    const clienteCep = (payer.zipCode || payer.cep || matchedCep || '').trim();
+    const matchedCep = rawAddress.match(cepRegex)?.[0] || '';
+    const clienteCep = (safePayer.zipCode || safePayer.cep || matchedCep || '').trim();
 
-    const produtoId = items.length === 1 
-      ? String(items[0]?.id || '') 
-      : items.map((i: any) => String(i?.id || '')).filter(Boolean).join(', ');
+    const produtoId = rawItems.length === 1 
+      ? String(rawItems[0]?.id || '') 
+      : rawItems.map((i: any) => String(i?.id || '')).filter(Boolean).join(', ');
 
-    const produtoTitulo = items.length === 1
-      ? String(items[0]?.title || 'Produto JS Variedades')
-      : items.map((i: any) => `${i.quantity || 1}x ${i.title || 'Produto'}`).join(', ');
+    const produtoTitulo = rawItems.length === 1
+      ? String(rawItems[0]?.title || 'Produto JS Variedades')
+      : rawItems.map((i: any) => `${i.quantity || 1}x ${i.title || 'Produto'}`).join(', ');
 
-    const valorTotal = Number((items.reduce((acc: number, item: any) => {
-      const price = Number(item.price ?? item.unit_price ?? 0);
+    const valorTotal = Number((rawItems.reduce((acc: number, item: any) => {
+      const price = Number(item.price ?? item.unit_price ?? 29.90);
       const qty = Math.max(1, Number(item.quantity) || 1);
       return acc + (price * qty);
     }, 0) * discountMultiplier).toFixed(2));
 
     /**
-     * Salva o registro na tabela 'pedidos' do Supabase.
-     * Tratamento não-bloqueante: caso haja qualquer erro ou aviso, registra no log
-     * e permite que o redirecionamento para o Mercado Pago prossiga sem interrupções.
+     * Requirement 2: Salva o registro na tabela 'pedidos' do Supabase num bloco try/catch isolado.
+     * Se falhar por qualquer motivo (tabela inexistente, permissão, etc.), registra no console.error
+     * e prossegue gerando a preferência do Mercado Pago normalmente sem retornar erro 400/500 para o cliente.
      */
     const saveOrderToSupabase = async () => {
       try {
         const supabase = getSupabaseServerClient();
-        if (!supabase) {
-          console.warn('[Supabase] Cliente não inicializado (verifique as credenciais no .env).');
-          return;
-        }
+        if (supabase) {
+          const pedidoRecord = {
+            cliente_nome: rawName,
+            cliente_email: rawEmail,
+            cliente_telefone: rawPhone || 'Não informado',
+            cliente_endereco: rawAddress,
+            cliente_cep: clienteCep || '00000-000',
+            produto_id: produtoId.slice(0, 255),
+            produto_titulo: produtoTitulo.slice(0, 255),
+            valor_total: valorTotal,
+            status_pagamento: 'pendente'
+          };
 
-        const pedidoRecord = {
-          cliente_nome: (payer.name || '').trim(),
-          cliente_email: (payer.email || '').trim(),
-          cliente_telefone: (payer.phone || '').trim(),
-          cliente_endereco: (payer.address || '').trim(),
-          cliente_cep: clienteCep,
-          produto_id: produtoId.slice(0, 255),
-          produto_titulo: produtoTitulo.slice(0, 255),
-          valor_total: valorTotal,
-          status_pagamento: 'pendente'
-        };
+          const { data: inserted, error: sbError } = await supabase
+            .from('pedidos')
+            .insert([pedidoRecord])
+            .select()
+            .maybeSingle();
 
-        const { data: inserted, error: sbError } = await supabase
-          .from('pedidos')
-          .insert([pedidoRecord])
-          .select()
-          .maybeSingle();
-
-        if (sbError) {
-          console.warn('[Supabase] Aviso ao registrar pedido na tabela pedidos:', sbError.message || sbError);
-        } else {
-          console.log('[Supabase] Pedido gravado com sucesso na tabela pedidos:', inserted?.id || 'OK');
+          if (sbError) {
+            console.error('[Supabase Error] Falha ao registrar na tabela pedidos:', sbError.message || sbError);
+          } else {
+            console.log('[Supabase] Pedido gravado com sucesso:', inserted?.id || 'OK');
+          }
         }
       } catch (sbException: any) {
-        console.warn('[Supabase] Falha ao conectar ou salvar pedido no Supabase (não-bloqueante):', sbException?.message || sbException);
+        console.error('[Supabase Error] Exceção na inserção do Supabase:', sbException?.message || sbException);
       }
     };
 
