@@ -151,7 +151,7 @@ export const Logo: React.FC<LogoProps> = ({
           </div>
 
           {showTagline && (
-            <span className={`font-semibold tracking-wider uppercase mt-1 flex items-center gap-1 ${taglineSizeClasses} ${
+            <span className={`font-semibold tracking-wider uppercase mt-0.5 sm:mt-1 hidden min-[370px]:flex items-center gap-1 ${taglineSizeClasses} ${
               isLight ? 'text-slate-400' : 'text-slate-500'
             }`}>
               <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse inline-block" />
