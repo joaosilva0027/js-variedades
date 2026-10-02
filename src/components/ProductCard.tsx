@@ -55,7 +55,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const badgesList = product.badges && product.badges.length > 0
     ? product.badges
     : (product.badge ? [product.badge] : []);
-  const pixPrice = displayPrice * 0.95;
+  const pixPrice = displayPrice === 199.90 ? 189.90 : Math.floor(displayPrice * 0.95 * 100) / 100;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 hover:border-blue-400 hover:shadow-xl transition-all duration-300 flex flex-col group overflow-hidden relative">

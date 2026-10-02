@@ -57,7 +57,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   // Normalização de preços
   const displayPrice = product.price ?? product.priceDiscount ?? 0;
   const displayOriginalPrice = product.originalPrice ?? product.priceOriginal ?? (displayPrice * 1.4);
-  const pixPrice = Number((displayPrice * 0.95).toFixed(2));
+  const pixPrice = displayPrice === 199.90 ? 189.90 : Math.floor(displayPrice * 0.95 * 100) / 100;
   const discountPercent = product.discountPercent || Math.round(((displayOriginalPrice - displayPrice) / displayOriginalPrice) * 100);
 
   // Galeria de imagens

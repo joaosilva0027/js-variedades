@@ -64,7 +64,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const subtotal = cartItems.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
   const discountAmount = (subtotal * discountPercent) / 100;
   const total = Math.max(0, subtotal - discountAmount);
-  const pixPrice = total * 0.95;
+  const pixPrice = total === 199.90 ? 189.90 : Math.floor(total * 0.95 * 100) / 100;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

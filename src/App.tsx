@@ -183,6 +183,22 @@ export default function App() {
       });
   }, []);
 
+  // Synchronize cart items with fresh product prices whenever products change
+  useEffect(() => {
+    setCartItems(prev => {
+      let changed = false;
+      const updated = prev.map(item => {
+        const found = products.find(p => p.id === item.product.id);
+        if (found && (found.price !== item.product.price || found.originalPrice !== item.product.originalPrice)) {
+          changed = true;
+          return { ...item, product: found };
+        }
+        return item;
+      });
+      return changed ? updated : prev;
+    });
+  }, [products]);
+
   // Category counts
   const productsCountByCategory = useMemo(() => {
     const counts: Record<string, number> = { all: products.length };
