@@ -4,33 +4,35 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 // Helper seguro e autocontido para obter o cliente Supabase sem dependência de ficheiros externos
 function getLocalSupabaseClient(): SupabaseClient | null {
   try {
-    const supabaseUrl = 
-      process.env.NEXT_PUBLIC_SUPABASE_URL || 
-      process.env.SUPABASE_URL;
+    const rawUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "").trim();
+    const supabaseUrl = rawUrl.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 
-    const supabaseKey = 
+    const supabaseKey = (
       process.env.SUPABASE_SERVICE_ROLE_KEY || 
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+      ""
+    ).trim();
 
-    if (!supabaseUrl || !supabaseKey || typeof supabaseUrl !== 'string' || typeof supabaseKey !== 'string') {
+    if (!supabaseUrl || !supabaseKey) {
       return null;
     }
 
-    const trimmedUrl = supabaseUrl.trim();
-    const trimmedKey = supabaseKey.trim();
-
-    if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+    if (!supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
       return null;
     }
 
-    return createClient(trimmedUrl, trimmedKey, {
+    return createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false
       }
     });
-  } catch (err) {
-    console.error('Falha ao registar pedido no Supabase:', err);
+  } catch (err: any) {
+    console.log("Config Supabase ativa:", {
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "INDEFINIDO",
+      hasKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    });
+    console.error("Falha ao registar pedido no Supabase:", err?.message, err?.cause || err);
     return null;
   }
 }
@@ -183,13 +185,21 @@ async function processCheckout(body: any, hostHeader?: string | null) {
         .maybeSingle();
 
       if (sbError) {
-        console.error('Falha ao registar pedido no Supabase:', sbError.message || sbError);
+        console.log("Config Supabase ativa:", {
+          url: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "INDEFINIDO",
+          hasKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+        });
+        console.error("Falha ao registar pedido no Supabase:", sbError?.message, sbError);
       } else {
         console.log('[Supabase] Pedido gravado com sucesso:', inserted?.id || 'OK');
       }
     }
-  } catch (sbErr: any) {
-    console.error('Falha ao registar pedido no Supabase:', sbErr?.message || sbErr);
+  } catch (err: any) {
+    console.log("Config Supabase ativa:", {
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "INDEFINIDO",
+      hasKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+    });
+    console.error("Falha ao registar pedido no Supabase:", err?.message, err?.cause || err);
   }
 
   // Mercado Pago preference generation

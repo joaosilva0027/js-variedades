@@ -183,12 +183,20 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
           .maybeSingle();
 
         if (sbError) {
-          console.error('Falha ao registar pedido no Supabase:', sbError.message || sbError);
+          console.log("Config Supabase ativa:", {
+            url: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "INDEFINIDO",
+            hasKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+          });
+          console.error("Falha ao registar pedido no Supabase:", sbError?.message, sbError);
         } else {
           console.log('[Supabase] Pedido gravado com sucesso:', inserted?.id || 'OK');
         }
-      } catch (sbException: any) {
-        console.error('Falha ao registar pedido no Supabase:', sbException?.message || sbException);
+      } catch (err: any) {
+        console.log("Config Supabase ativa:", {
+          url: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "INDEFINIDO",
+          hasKey: !!(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+        });
+        console.error("Falha ao registar pedido no Supabase:", err?.message, err?.cause || err);
       }
     };
 
