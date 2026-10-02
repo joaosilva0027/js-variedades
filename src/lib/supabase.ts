@@ -1,47 +1,62 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// Cache de instâncias seguras
+let cachedServerClient: SupabaseClient | null = null;
+
 /**
- * Retorna o cliente Supabase configurado para o ambiente de servidor (Node.js/Express).
- * Prioriza a chave de serviço SUPABASE_SERVICE_ROLE_KEY com bypass de RLS,
- * ou recorre à NEXT_PUBLIC_SUPABASE_ANON_KEY.
+ * Retorna com segurança o cliente Supabase para o ambiente de servidor.
+ * NUNCA lança exceção: se as variáveis estiverem ausentes, vazias ou inválidas,
+ * retorna silenciosamente null sem travar a aplicação.
  */
 export function getSupabaseServerClient(): SupabaseClient | null {
-  const supabaseUrl = 
-    process.env.NEXT_PUBLIC_SUPABASE_URL || 
-    process.env.SUPABASE_URL || 
-    process.env.VITE_SUPABASE_URL;
-
-  const supabaseKey = 
-    process.env.SUPABASE_SERVICE_ROLE_KEY || 
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-    process.env.VITE_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.warn('[Supabase] URL ou chave do Supabase não configuradas no ambiente.');
-    return null;
+  if (cachedServerClient) {
+    return cachedServerClient;
   }
 
   try {
-    return createClient(supabaseUrl.trim(), supabaseKey.trim(), {
+    const rawUrl = 
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 
+      process.env.SUPABASE_URL || 
+      process.env.VITE_SUPABASE_URL;
+
+    const rawKey = 
+      process.env.SUPABASE_SERVICE_ROLE_KEY || 
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+      process.env.VITE_SUPABASE_ANON_KEY;
+
+    // Validação rigorosa das variáveis
+    if (!rawUrl || typeof rawUrl !== 'string' || !rawUrl.trim()) {
+      return null;
+    }
+
+    if (!rawKey || typeof rawKey !== 'string' || !rawKey.trim()) {
+      return null;
+    }
+
+    const trimmedUrl = rawUrl.trim();
+    const trimmedKey = rawKey.trim();
+
+    // Deve ser uma URL HTTP/HTTPS válida
+    if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+      return null;
+    }
+
+    cachedServerClient = createClient(trimmedUrl, trimmedKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false
       }
     });
+
+    return cachedServerClient;
   } catch (err) {
-    console.error('[Supabase] Falha ao inicializar cliente Supabase:', err);
+    // Nunca trava o servidor se o createClient falhar
+    console.error('Supabase ignorado: falha na inicialização do cliente:', err);
     return null;
   }
 }
 
 /**
- * Cliente Supabase padrão para uso compartilhado se as variáveis estiverem presentes.
+ * Cliente Supabase seguro (lazy getter). Não instancia no carregamento global do arquivo.
  */
-const defaultUrl = 
-  (typeof process !== 'undefined' && (process.env?.NEXT_PUBLIC_SUPABASE_URL || process.env?.SUPABASE_URL)) || '';
-const defaultKey = 
-  (typeof process !== 'undefined' && (process.env?.SUPABASE_SERVICE_ROLE_KEY || process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY)) || '';
-
-export const supabase: SupabaseClient | null = defaultUrl && defaultKey 
-  ? createClient(defaultUrl.trim(), defaultKey.trim()) 
-  : null;
+export const supabase: SupabaseClient | null = null;

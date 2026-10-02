@@ -90,7 +90,8 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
       };
     });
 
-    const appUrl = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+    const candidateAppUrl = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+    const isValidHttpUrl = candidateAppUrl.startsWith('http://') || candidateAppUrl.startsWith('https://');
 
     // Mercado Pago Preference Payload
     const preferenceData: any = {
@@ -108,12 +109,6 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
           zip_code: (safePayer.zipCode || safePayer.cep || '01001-000').replace(/\D/g, '') || '01001000'
         }
       },
-      back_urls: {
-        success: `${appUrl}/?status=approved&collection_status=approved`,
-        failure: `${appUrl}/?status=failure`,
-        pending: `${appUrl}/?status=pending`
-      },
-      auto_return: 'approved',
       statement_descriptor: 'JS VARIEDADES',
       external_reference: `JS-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       payment_methods: {
@@ -127,6 +122,16 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
         source: 'js_variedades_checkout_pro'
       }
     };
+
+    // auto_return: 'approved' apenas se as back_urls forem URLs válidas (com http/https)
+    if (isValidHttpUrl) {
+      preferenceData.back_urls = {
+        success: `${candidateAppUrl}/?status=approved&collection_status=approved`,
+        failure: `${candidateAppUrl}/?status=failure`,
+        pending: `${candidateAppUrl}/?status=pending`
+      };
+      preferenceData.auto_return = 'approved';
+    }
 
     // Extract and compute required order fields for Supabase table 'pedidos'
     const cepRegex = /\b\d{5}-?\d{3}\b/;
@@ -148,40 +153,42 @@ app.post('/api/checkout', async (req: Request, res: Response): Promise<void> => 
     }, 0) * discountMultiplier).toFixed(2));
 
     /**
-     * Requirement 2: Salva o registro na tabela 'pedidos' do Supabase num bloco try/catch isolado.
-     * Se falhar por qualquer motivo (tabela inexistente, permissão, etc.), registra no console.error
-     * e prossegue gerando a preferência do Mercado Pago normalmente sem retornar erro 400/500 para o cliente.
+     * Requirement 2: Se o cliente do Supabase for null ou se a inserção falhar no try/catch, 
+     * faça apenas console.error("Supabase ignorado:") e prossiga SEM travar o fluxo.
      */
     const saveOrderToSupabase = async () => {
       try {
         const supabase = getSupabaseServerClient();
-        if (supabase) {
-          const pedidoRecord = {
-            cliente_nome: rawName,
-            cliente_email: rawEmail,
-            cliente_telefone: rawPhone || 'Não informado',
-            cliente_endereco: rawAddress,
-            cliente_cep: clienteCep || '00000-000',
-            produto_id: produtoId.slice(0, 255),
-            produto_titulo: produtoTitulo.slice(0, 255),
-            valor_total: valorTotal,
-            status_pagamento: 'pendente'
-          };
+        if (!supabase) {
+          console.error('Supabase ignorado: cliente não configurado ou credenciais ausentes.');
+          return;
+        }
 
-          const { data: inserted, error: sbError } = await supabase
-            .from('pedidos')
-            .insert([pedidoRecord])
-            .select()
-            .maybeSingle();
+        const pedidoRecord = {
+          cliente_nome: rawName,
+          cliente_email: rawEmail,
+          cliente_telefone: rawPhone || 'Não informado',
+          cliente_endereco: rawAddress,
+          cliente_cep: clienteCep || '00000-000',
+          produto_id: produtoId.slice(0, 255),
+          produto_titulo: produtoTitulo.slice(0, 255),
+          valor_total: valorTotal,
+          status_pagamento: 'pendente'
+        };
 
-          if (sbError) {
-            console.error('[Supabase Error] Falha ao registrar na tabela pedidos:', sbError.message || sbError);
-          } else {
-            console.log('[Supabase] Pedido gravado com sucesso:', inserted?.id || 'OK');
-          }
+        const { data: inserted, error: sbError } = await supabase
+          .from('pedidos')
+          .insert([pedidoRecord])
+          .select()
+          .maybeSingle();
+
+        if (sbError) {
+          console.error('Falha ao registar pedido no Supabase:', sbError.message || sbError);
+        } else {
+          console.log('[Supabase] Pedido gravado com sucesso:', inserted?.id || 'OK');
         }
       } catch (sbException: any) {
-        console.error('[Supabase Error] Exceção na inserção do Supabase:', sbException?.message || sbException);
+        console.error('Falha ao registar pedido no Supabase:', sbException?.message || sbException);
       }
     };
 

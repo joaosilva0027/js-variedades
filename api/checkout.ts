@@ -1,11 +1,45 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSupabaseServerClient } from '../src/lib/supabase';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+// Helper seguro e autocontido para obter o cliente Supabase sem dependência de ficheiros externos
+function getLocalSupabaseClient(): SupabaseClient | null {
+  try {
+    const supabaseUrl = 
+      process.env.NEXT_PUBLIC_SUPABASE_URL || 
+      process.env.SUPABASE_URL;
+
+    const supabaseKey = 
+      process.env.SUPABASE_SERVICE_ROLE_KEY || 
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey || typeof supabaseUrl !== 'string' || typeof supabaseKey !== 'string') {
+      return null;
+    }
+
+    const trimmedUrl = supabaseUrl.trim();
+    const trimmedKey = supabaseKey.trim();
+
+    if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+      return null;
+    }
+
+    return createClient(trimmedUrl, trimmedKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
+  } catch (err) {
+    console.error('Falha ao registar pedido no Supabase:', err);
+    return null;
+  }
+}
 
 // Helper to extract and format checkout preference
 async function processCheckout(body: any, hostHeader?: string | null) {
   const { items, payer, discountPercent = 0 } = body || {};
 
-  // Requirement 3: Safe fallback if items is empty or invalid
+  // Safe fallback if items is empty or invalid
   let rawItems = Array.isArray(items) && items.length > 0 ? items : [];
   if (rawItems.length === 0) {
     rawItems = [{
@@ -39,7 +73,7 @@ async function processCheckout(body: any, hostHeader?: string | null) {
   // Discount
   const discountMultiplier = discountPercent > 0 ? (100 - discountPercent) / 100 : 1;
 
-  // Prepare Mercado Pago items array with safe fallback for unit_price and quantity
+  // Prepare Mercado Pago items array with safe fallback for unit_price, quantity, title and currency_id: 'BRL'
   const mpItems = rawItems.map((item: any, index: number) => {
     const rawPrice = Number(item.price ?? item.unit_price ?? 0);
     const validPrice = !isNaN(rawPrice) && rawPrice > 0 ? rawPrice : 29.90;
@@ -60,11 +94,13 @@ async function processCheckout(body: any, hostHeader?: string | null) {
     };
   });
 
-  const appUrl = (
+  const candidateAppUrl = (
     process.env.APP_URL || 
     (hostHeader ? `https://${hostHeader}` : '') || 
     'https://jsvariedades.com.br'
   ).replace(/\/$/, '');
+
+  const isValidHttpUrl = candidateAppUrl.startsWith('http://') || candidateAppUrl.startsWith('https://');
 
   const preferenceData: any = {
     items: mpItems,
@@ -81,12 +117,6 @@ async function processCheckout(body: any, hostHeader?: string | null) {
         zip_code: (safePayer.zipCode || safePayer.cep || '01001-000').replace(/\D/g, '') || '01001000'
       }
     },
-    back_urls: {
-      success: `${appUrl}/?status=approved&collection_status=approved`,
-      failure: `${appUrl}/?status=failure`,
-      pending: `${appUrl}/?status=pending`
-    },
-    auto_return: 'approved',
     statement_descriptor: 'JS VARIEDADES',
     external_reference: `JS-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     payment_methods: {
@@ -100,6 +130,16 @@ async function processCheckout(body: any, hostHeader?: string | null) {
       source: 'js_variedades_checkout_pro'
     }
   };
+
+  // auto_return: 'approved' apenas se as back_urls forem URLs válidas (com http/https)
+  if (isValidHttpUrl) {
+    preferenceData.back_urls = {
+      success: `${candidateAppUrl}/?status=approved&collection_status=approved`,
+      failure: `${candidateAppUrl}/?status=failure`,
+      pending: `${candidateAppUrl}/?status=pending`
+    };
+    preferenceData.auto_return = 'approved';
+  }
 
   // Order fields for Supabase table 'pedidos'
   const cepRegex = /\b\d{5}-?\d{3}\b/;
@@ -120,10 +160,9 @@ async function processCheckout(body: any, hostHeader?: string | null) {
     return acc + (price * qty);
   }, 0) * discountMultiplier).toFixed(2));
 
-  // Requirement 2: Envolver a inserção do Supabase num bloco try/catch isolado
-  // Se falhar (ex: tabela inexistente ou permissão), apenas registra no console.error e prossegue
+  // Gravação no Supabase isolada em try/catch
   try {
-    const supabase = getSupabaseServerClient();
+    const supabase = getLocalSupabaseClient();
     if (supabase) {
       const pedidoRecord = {
         cliente_nome: rawName,
@@ -144,13 +183,13 @@ async function processCheckout(body: any, hostHeader?: string | null) {
         .maybeSingle();
 
       if (sbError) {
-        console.error('[Supabase Error] Falha ao registrar na tabela pedidos:', sbError.message || sbError);
+        console.error('Falha ao registar pedido no Supabase:', sbError.message || sbError);
       } else {
         console.log('[Supabase] Pedido gravado com sucesso:', inserted?.id || 'OK');
       }
     }
   } catch (sbErr: any) {
-    console.error('[Supabase Error] Exceção na inserção do Supabase:', sbErr?.message || sbErr);
+    console.error('Falha ao registar pedido no Supabase:', sbErr?.message || sbErr);
   }
 
   // Mercado Pago preference generation
@@ -255,7 +294,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const fallbackId = `ERR-${Date.now()}`;
     const fallbackUrl = `https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=${fallbackId}`;
 
-    // Always return valid JSON and status 200 with init_point/url as requested
     res.status(200).json({
       error: error?.message || 'Erro ao processar checkout.',
       id: fallbackId,
